@@ -33,23 +33,64 @@ export class YouTubeScraper {
      * Parses the ytInitialPlayerResponse object embedded in the watch HTML.
      */
     public async scrapeVideo(url: string): Promise<YouTubeResult> {
+        const videoIdMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^"&?\/\s]{11})/);
+        if (!videoIdMatch || !videoIdMatch[1]) {
+            throw new Error('Invalid YouTube URL');
+        }
+        const videoId = videoIdMatch[1];
+
         const html = await this.client.getText(url, {
-            headers: {
-                'Cookie': 'CONSENT=YES+cb.20230501-14-p0.en+FX+430'
-            }
+            headers: { 'Cookie': 'CONSENT=YES+cb.20230501-14-p0.en+FX+430' }
         });
         
-        // Find ytInitialPlayerResponse JSON fragment in the HTML
         const regex = /ytInitialPlayerResponse\s*=\s*({.*?});(?:var|<\/script>)/;
         const match = html.match(regex);
+        let visitorData = '';
+        let details: any = {};
         
-        if (!match || !match[1]) {
-            throw new Error('ytInitialPlayerResponse not found. YouTube might have changed their layout or the IP is blocked.');
+        if (match && match[1]) {
+            const data = JSON.parse(match[1]);
+            details = data?.videoDetails || {};
+            visitorData = data?.responseContext?.visitorData || '';
+        }
+        
+        if (!visitorData) {
+            const vdMatch = html.match(/"visitorData"\s*:\s*"([^"]+)"/);
+            if (vdMatch) visitorData = vdMatch[1];
         }
 
-        const data = JSON.parse(match[1]);
-        const details = data?.videoDetails;
-        const streamingData = data?.streamingData;
+        const payload = {
+            context: {
+                client: {
+                    hl: 'en',
+                    gl: 'US',
+                    clientName: 'IOS',
+                    clientVersion: '19.28.1',
+                    osName: 'iOS',
+                    osVersion: '17.5.1',
+                    deviceMake: 'Apple',
+                    deviceModel: 'iPhone16,2',
+                    visitorData: visitorData
+                }
+            },
+            videoId: videoId
+        };
+
+        const res = await this.client.request('https://www.youtube.com/youtubei/v1/player', {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'User-Agent': 'com.google.ios.youtube/19.28.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X; en_US)'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const apiData = await res.json() as any;
+        if (!details.title) {
+            details = apiData?.videoDetails || {};
+        }
+        const streamingData = apiData?.streamingData;
 
         if (!details) {
             throw new Error('Video details not found inside player response.');

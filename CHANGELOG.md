@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] "Performance Patch" - 2026-02-27
+- **Perf:** Re-engineered the YouTube scraper in Node.js and Python to use the `IOS` InnerTube API directly, injecting localized `visitorData` tokens to seamlessly bypass bot checks and cipher encryption. Video format lists are returned instantaneously for optimal downloading infrastructure.
+- **Fix:** Fixed HTML parser blocking on high-volume deployed servers by upgrading to the direct `POST /youtubei/v1/player` endpoints.
+
 ## [1.1.0] - "Milk Tea" Release - 2026-02-27
 
 ### Changed
