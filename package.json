@@ -1,0 +1,44 @@
+{
+  "name": "@zetagoaurum-dev/straw",
+  "version": "1.1.0",
+  "description": "Enterprise-grade unified JS/TS and Python scraping library for Web, YouTube, and Media (Images, Audio, Video, Documents)",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test": "tsx tests/test.ts"
+  },
+  "keywords": [
+    "scraping",
+    "scraper",
+    "youtube-scraper",
+    "media-extractor",
+    "anti-cors"
+  ],
+  "author": "ZetaGo-Aurum",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ZetaGo-Aurum/straw.git"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.2",
+    "ts-node": "^10.9.2",
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "undici": "^7.22.0"
+  }
+}
