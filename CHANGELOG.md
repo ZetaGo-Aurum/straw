@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] "Hotfix" - 2026-02-27
+- **Fix:** Removed accidentally tracked `download test` directory from the previous NPM deployment bundle to keep the library lightweight (zero-bloat).
+
 ## [1.3.0] "Chunk Downloader & Universal Extraction" - 2026-02-27
 - **Feat:** Built a new `download_test.js` script showcasing the *Chunked HTTP Range Bypasser*. This fundamentally resolves 403 Forbidden endpoints for 4K and HD downloads on IOS InnerTube endpoints.
 - **Fix:** Restored `audio/video` combined format extraction logic to analyze `audioChannels` and `audioSampleRate`, effectively fixing 0-length combined arrays.
