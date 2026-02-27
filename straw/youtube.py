@@ -19,6 +19,7 @@ class YouTubeScraper:
         visitor_data = ""
         details = {}
         initial_data = {}
+        html_streaming_data = {}
         
         player_match = re.search(r'ytInitialPlayerResponse\s*=\s*({.*?});(?:var|<\/script>)', html)
         if player_match:
@@ -26,6 +27,7 @@ class YouTubeScraper:
                 data_html = json.loads(player_match.group(1))
                 details = data_html.get('videoDetails', {})
                 visitor_data = data_html.get('responseContext', {}).get('visitorData', '')
+                html_streaming_data = data_html.get('streamingData', {})
             except:
                 pass
                 
@@ -110,31 +112,40 @@ class YouTubeScraper:
         video_only = []
         audio_only = []
         
-        raw_formats = streaming_data.get('formats', []) + streaming_data.get('adaptiveFormats', [])
-
+        raw_formats = (
+            streaming_data.get('formats', []) + 
+            streaming_data.get('adaptiveFormats', []) +
+            html_streaming_data.get('formats', []) +
+            html_streaming_data.get('adaptiveFormats', [])
+        )
+        
+        format_map = {}
         for f in raw_formats:
-            if 'url' in f:
-                mime_type = f.get('mimeType', '')
-                has_audio = 'audio/' in mime_type
-                has_video = 'video/' in mime_type
+            if 'url' in f and 'itag' in f and f['itag'] not in format_map:
+                format_map[f['itag']] = f
+
+        for f in format_map.values():
+            mime_type = f.get('mimeType', '')
+            has_audio = 'audio/' in mime_type or 'audioChannels' in f or 'audioSampleRate' in f
+            has_video = 'video/' in mime_type or 'width' in f
                 
-                f_obj = {
-                    'url': f['url'],
-                    'mimeType': mime_type,
-                    'width': f.get('width'),
-                    'height': f.get('height'),
-                    'quality': f.get('qualityLabel') or f.get('quality'),
-                    'bitrate': f.get('bitrate'),
-                    'hasAudio': has_audio,
-                    'hasVideo': has_video
-                }
+            f_obj = {
+                'url': f['url'],
+                'mimeType': mime_type,
+                'width': f.get('width'),
+                'height': f.get('height'),
+                'quality': f.get('qualityLabel') or f.get('quality'),
+                'bitrate': f.get('bitrate'),
+                'hasAudio': has_audio,
+                'hasVideo': has_video
+            }
                 
-                if has_video and has_audio:
-                    video_combined.append(f_obj)
-                elif has_video:
-                    video_only.append(f_obj)
-                elif has_audio:
-                    audio_only.append(f_obj)
+            if has_video and has_audio:
+                video_combined.append(f_obj)
+            elif has_video:
+                video_only.append(f_obj)
+            elif has_audio:
+                audio_only.append(f_obj)
 
         thumbnails = details.get('thumbnail', {}).get('thumbnails', [])
         best_thumbnail = thumbnails[-1]['url'] if thumbnails else ''

@@ -61,10 +61,13 @@ export class YouTubeScraper {
             try { initialData = JSON.parse(dataMatch[1]); } catch(e) {}
         }
         
+        let htmlStreamingData: any = {};
+        
         if (match && match[1]) {
             const data = JSON.parse(match[1]);
             details = data?.videoDetails || {};
             visitorData = data?.responseContext?.visitorData || '';
+            htmlStreamingData = data?.streamingData || {};
         }
         
         if (!visitorData) {
@@ -134,10 +137,21 @@ export class YouTubeScraper {
         const videoOnly: YouTubeFormats[] = [];
         const audio: YouTubeFormats[] = [];
 
-        const rawFormats = [...(streamingData?.formats || []), ...(streamingData?.adaptiveFormats || [])];
+        const rawFormats = [
+            ...(streamingData?.formats || []),
+            ...(streamingData?.adaptiveFormats || []),
+            ...(htmlStreamingData?.formats || []),
+            ...(htmlStreamingData?.adaptiveFormats || [])
+        ];
         
+        const formatMap = new Map<number, any>();
         for (const format of rawFormats) {
-            if (format.url) {
+            if (format.url && format.itag && !formatMap.has(format.itag)) {
+                formatMap.set(format.itag, format);
+            }
+        }
+        
+        for (const format of formatMap.values()) {
                 const mimeType = format.mimeType || '';
                 const formatObj = {
                     url: format.url,
@@ -146,14 +160,13 @@ export class YouTubeScraper {
                     height: format.height,
                     quality: format.qualityLabel || format.quality,
                     bitrate: format.bitrate,
-                    hasAudio: mimeType.includes('audio/'),
-                    hasVideo: mimeType.includes('video/')
+                    hasAudio: mimeType.includes('audio/') || !!format.audioChannels || !!format.audioSampleRate,
+                    hasVideo: mimeType.includes('video/') || !!format.width
                 };
 
                 if (formatObj.hasVideo && formatObj.hasAudio) video.push(formatObj);
                 else if (formatObj.hasVideo) videoOnly.push(formatObj);
                 else if (formatObj.hasAudio) audio.push(formatObj);
-            }
         }
 
         return {

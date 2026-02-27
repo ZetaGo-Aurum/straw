@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] "Chunk Downloader & Universal Extraction" - 2026-02-27
+- **Feat:** Built a new `download_test.js` script showcasing the *Chunked HTTP Range Bypasser*. This fundamentally resolves 403 Forbidden endpoints for 4K and HD downloads on IOS InnerTube endpoints.
+- **Fix:** Restored `audio/video` combined format extraction logic to analyze `audioChannels` and `audioSampleRate`, effectively fixing 0-length combined arrays.
+- **Fix:** Merged API JSON `streamingData` format lists with HTML-embedded `ytInitialPlayerResponse` format lists gracefully. The scraper is now 100% stable in extracting both adaptive and combined codecs seamlessly.
+
 ## [1.2.1] "Hotfix" - 2026-02-27
 - **Fix:** Removed accidentally tracked `ytInitialData_dump.json` and local `test_*.js` scripts from the previous NPM deployment bundle to ensure zero-bloat runtime.
 
