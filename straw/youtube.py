@@ -13,17 +13,28 @@ class YouTubeScraper:
             raise Exception("Invalid YouTube URL")
         video_id = match.group(1)
 
-        headers = {'Cookie': 'CONSENT=YES+cb.20230501-14-p0.en+FX+430'}
+        headers = {'Cookie': 'CONSENT=YES+cb.20230501-14-p0.en+FX+430', 'Accept-Language': 'en-US,en;q=0.9'}
         html = await self.client.get_text(url, headers=headers)
         
         visitor_data = ""
         details = {}
+        initial_data = {}
         
         player_match = re.search(r'ytInitialPlayerResponse\s*=\s*({.*?});(?:var|<\/script>)', html)
         if player_match:
-            data_html = json.loads(player_match.group(1))
-            details = data_html.get('videoDetails', {})
-            visitor_data = data_html.get('responseContext', {}).get('visitorData', '')
+            try:
+                data_html = json.loads(player_match.group(1))
+                details = data_html.get('videoDetails', {})
+                visitor_data = data_html.get('responseContext', {}).get('visitorData', '')
+            except:
+                pass
+                
+        data_match = re.search(r'var ytInitialData\s*=\s*({.*?});(?:<\/script>)', html)
+        if data_match:
+            try:
+                initial_data = json.loads(data_match.group(1))
+            except:
+                pass
             
         if not visitor_data:
             vd_match = re.search(r'"visitorData"\s*:\s*"([^"]+)"', html)
@@ -64,22 +75,66 @@ class YouTubeScraper:
         if not details:
             raise Exception("Video details not found inside player response.")
 
-        formats = []
+        subscribers = ""
+        likes = ""
+        comments = ""
+        
+        try:
+            contents = initial_data.get('contents', {}).get('twoColumnWatchNextResults', {}).get('results', {}).get('results', {}).get('contents', [])
+            for c in contents:
+                sec_info = c.get('videoSecondaryInfoRenderer')
+                if sec_info:
+                    stext = sec_info.get('owner', {}).get('videoOwnerRenderer', {}).get('subscriberCountText', {}).get('simpleText')
+                    if stext: subscribers = stext
+
+            panels = initial_data.get('engagementPanels', [])
+            for p in panels:
+                sr = p.get('engagementPanelSectionListRenderer', {})
+                if sr.get('targetId') == 'engagement-panel-structured-description':
+                    items = sr.get('content', {}).get('structuredDescriptionContentRenderer', {}).get('items', [])
+                    for i in items:
+                        factoids = i.get('videoDescriptionHeaderRenderer', {}).get('factoid', [])
+                        for f in factoids:
+                            acc = f.get('factoidRenderer', {}).get('accessibilityText', '')
+                            if 'like' in acc.lower():
+                                likes = acc
+                                
+                if sr.get('panelIdentifier') == 'engagement-panel-comments-section':
+                    runs = sr.get('header', {}).get('engagementPanelTitleHeaderRenderer', {}).get('contextualInfo', {}).get('runs', [])
+                    if runs:
+                        comments = runs[0].get('text', '')
+        except:
+            pass
+
+        video_combined = []
+        video_only = []
+        audio_only = []
+        
         raw_formats = streaming_data.get('formats', []) + streaming_data.get('adaptiveFormats', [])
 
         for f in raw_formats:
             if 'url' in f:
                 mime_type = f.get('mimeType', '')
-                formats.append({
+                has_audio = 'audio/' in mime_type
+                has_video = 'video/' in mime_type
+                
+                f_obj = {
                     'url': f['url'],
                     'mimeType': mime_type,
                     'width': f.get('width'),
                     'height': f.get('height'),
                     'quality': f.get('qualityLabel') or f.get('quality'),
                     'bitrate': f.get('bitrate'),
-                    'hasAudio': 'audio/' in mime_type,
-                    'hasVideo': 'video/' in mime_type
-                })
+                    'hasAudio': has_audio,
+                    'hasVideo': has_video
+                }
+                
+                if has_video and has_audio:
+                    video_combined.append(f_obj)
+                elif has_video:
+                    video_only.append(f_obj)
+                elif has_audio:
+                    audio_only.append(f_obj)
 
         thumbnails = details.get('thumbnail', {}).get('thumbnails', [])
         best_thumbnail = thumbnails[-1]['url'] if thumbnails else ''
@@ -87,9 +142,16 @@ class YouTubeScraper:
         return {
             'title': details.get('title', ''),
             'author': details.get('author', ''),
+            'subscribers': subscribers,
             'description': details.get('shortDescription', ''),
             'views': details.get('viewCount', '0'),
+            'likes': likes,
+            'comments': comments,
             'durationSeconds': details.get('lengthSeconds', '0'),
             'thumbnail': best_thumbnail,
-            'formats': formats
+            'formats': {
+                'video': video_combined,
+                'videoOnly': video_only,
+                'audio': audio_only
+            }
         }

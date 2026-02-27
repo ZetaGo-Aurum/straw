@@ -19,9 +19,12 @@ async function runTests() {
         const ytClient = straw.youtube();
         // Use a generic test video like Big Buck Bunny
         const ytResult = await ytClient.scrapeVideo('https://www.youtube.com/watch?v=aqz-KE-bpKQ');
-        console.log(`YouTube Scraper Output: Title = ${ytResult.title}`);
-        console.log(`YouTube Scraper Output: Duration = ${ytResult.durationSeconds} seconds`);
-        console.log(`YouTube Scraper Output: Found ${ytResult.formats.length} formats`);
+        console.log('YouTube Scraper Output: Title =', ytResult.title);
+  console.log('YouTube Scraper Output: Subscribers =', ytResult.subscribers);
+  console.log('YouTube Scraper Output: Likes =', ytResult.likes);
+  console.log('YouTube Scraper Output: Comments =', ytResult.comments);
+  console.log('YouTube Scraper Output: Duration =', ytResult.durationSeconds, 'seconds');
+  console.log(`YouTube Scraper Output: Found ${ytResult.formats.video.length} video (combined), ${ytResult.formats.videoOnly.length} video-only, and ${ytResult.formats.audio.length} audio formats.`);
 
         console.log('\n---------------------------------');
 

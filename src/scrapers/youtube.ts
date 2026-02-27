@@ -14,11 +14,18 @@ export interface YouTubeFormats {
 export interface YouTubeResult {
     title: string;
     author: string;
+    subscribers: string;
     description: string;
     views: string;
+    likes: string;
+    comments: string;
     durationSeconds: string;
     thumbnail: string;
-    formats: YouTubeFormats[];
+    formats: {
+        video: YouTubeFormats[];
+        videoOnly: YouTubeFormats[];
+        audio: YouTubeFormats[];
+    };
 }
 
 export class YouTubeScraper {
@@ -40,13 +47,19 @@ export class YouTubeScraper {
         const videoId = videoIdMatch[1];
 
         const html = await this.client.getText(url, {
-            headers: { 'Cookie': 'CONSENT=YES+cb.20230501-14-p0.en+FX+430' }
+            headers: { 'Cookie': 'CONSENT=YES+cb.20230501-14-p0.en+FX+430', 'Accept-Language': 'en-US,en;q=0.9' }
         });
         
         const regex = /ytInitialPlayerResponse\s*=\s*({.*?});(?:var|<\/script>)/;
         const match = html.match(regex);
         let visitorData = '';
         let details: any = {};
+        
+        let initialData: any = {};
+        const dataMatch = html.match(/var ytInitialData\s*=\s*({.*?});(?:<\/script>)/);
+        if (dataMatch && dataMatch[1]) {
+            try { initialData = JSON.parse(dataMatch[1]); } catch(e) {}
+        }
         
         if (match && match[1]) {
             const data = JSON.parse(match[1]);
@@ -96,13 +109,37 @@ export class YouTubeScraper {
             throw new Error('Video details not found inside player response.');
         }
 
-        const formats: YouTubeFormats[] = [];
+        let subscribers = '';
+        let likes = '';
+        let comments = '';
+
+        try {
+            const secInfo = initialData?.contents?.twoColumnWatchNextResults?.results?.results?.contents?.find((c: any) => c.videoSecondaryInfoRenderer)?.videoSecondaryInfoRenderer;
+            if (secInfo?.owner?.videoOwnerRenderer?.subscriberCountText?.simpleText) {
+                subscribers = secInfo.owner.videoOwnerRenderer.subscriberCountText.simpleText;
+            }
+            
+            const factoids = initialData?.engagementPanels?.find((p: any) => p.engagementPanelSectionListRenderer?.targetId === 'engagement-panel-structured-description')
+                ?.engagementPanelSectionListRenderer?.content?.structuredDescriptionContentRenderer?.items?.find((i: any) => i.videoDescriptionHeaderRenderer)?.videoDescriptionHeaderRenderer?.factoid || [];
+            const likesFactoid = factoids.find((f: any) => f.factoidRenderer?.accessibilityText?.toLowerCase().includes('like'));
+            if (likesFactoid) likes = likesFactoid.factoidRenderer.accessibilityText;
+            
+            const commentsPanel = initialData?.engagementPanels?.find((p: any) => p.engagementPanelSectionListRenderer?.panelIdentifier === 'engagement-panel-comments-section');
+            if (commentsPanel) {
+                comments = commentsPanel.engagementPanelSectionListRenderer.header.engagementPanelTitleHeaderRenderer.contextualInfo?.runs?.[0]?.text || '';
+            }
+        } catch (e) {}
+
+        const video: YouTubeFormats[] = [];
+        const videoOnly: YouTubeFormats[] = [];
+        const audio: YouTubeFormats[] = [];
+
         const rawFormats = [...(streamingData?.formats || []), ...(streamingData?.adaptiveFormats || [])];
         
         for (const format of rawFormats) {
             if (format.url) {
                 const mimeType = format.mimeType || '';
-                formats.push({
+                const formatObj = {
                     url: format.url,
                     mimeType: mimeType,
                     width: format.width,
@@ -111,23 +148,29 @@ export class YouTubeScraper {
                     bitrate: format.bitrate,
                     hasAudio: mimeType.includes('audio/'),
                     hasVideo: mimeType.includes('video/')
-                });
-            } else if (format.signatureCipher) {
-                // To avoid bloatware, we do not implement the complex decipher algorithm here.
-                // Modern APIs usually provide the URL directly for lower qualities or we can fallback to other APIs.
-                // Implementing decipher requires porting youtube-dl's sig logic or using ytdl-core.
-                continue;
+                };
+
+                if (formatObj.hasVideo && formatObj.hasAudio) video.push(formatObj);
+                else if (formatObj.hasVideo) videoOnly.push(formatObj);
+                else if (formatObj.hasAudio) audio.push(formatObj);
             }
         }
 
         return {
             title: details.title || '',
             author: details.author || '',
+            subscribers: subscribers,
             description: details.shortDescription || '',
             views: details.viewCount || '0',
+            likes: likes,
+            comments: comments,
             durationSeconds: details.lengthSeconds || '0',
             thumbnail: details.thumbnail?.thumbnails?.[details.thumbnail.thumbnails.length - 1]?.url || '',
-            formats
+            formats: {
+                video,
+                videoOnly,
+                audio
+            }
         };
     }
 }
