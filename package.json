@@ -1,6 +1,6 @@
 {
   "name": "@zetagoaurum-dev/straw",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Enterprise-grade unified JS/TS and Python scraping library for Web, YouTube, and Media (Images, Audio, Video, Documents)",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

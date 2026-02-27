@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] "Hotfix" - 2026-02-27
+- **Fix:** Removed accidentally tracked `ytInitialData_dump.json` and local `test_*.js` scripts from the previous NPM deployment bundle to ensure zero-bloat runtime.
+
 ## [1.2.0] "Deep Metadata & Formats Engine" - 2026-02-27
 - **Feat:** Integrated extracting `subscribers`, `likes`, and `comments` directly from YouTube's `ytInitialData` payload without external parsing overhead.
 - **Feat:** Segregated `formats` array into three exact categorical bins: `video` (combined), `videoOnly`, and `audio` (audio-only), ensuring zero-ambiguity when downloading specific streams.
